@@ -136,7 +136,8 @@ def load_and_train_advanced_model():
 # -------------------------------------------------------------
 # 2. 蒙地卡羅模擬器
 # -------------------------------------------------------------
-def run_monte_carlo(home_exp_runs, away_exp_runs, n_simulations=10000):
+@st.cache_data # 👈 加入快取裝飾器
+def run_monte_carlo(home_exp_runs, away_exp_runs, n_simulations=5000):
     home_scores = np.random.poisson(lam=home_exp_runs, size=n_simulations)
     away_scores = np.random.poisson(lam=away_exp_runs, size=n_simulations)
 
