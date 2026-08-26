@@ -1,0 +1,56 @@
+name: ⚾ MLB 賽事數據每日自動更新
+
+on:
+  schedule:
+    # 每天台灣時間早上 09:00 (UTC 01:00) 自動執行
+    - cron: '0 1 * * *'
+  workflow_dispatch: # 支援在 GitHub 網頁上手動按「Run workflow」觸發
+
+permissions:
+  contents: write # 賦予 Actions 提交並推送回儲存庫的權限
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 檢出專案代碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Python 環境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安裝必要依賴
+        run: |
+          pip install MLB-StatsAPI pandas
+
+      - name: 執行數據自動更新腳本
+        run: |
+          python -c "
+          import statsapi, pandas as pd, datetime, os
+          print('開始每日賽事自動同步...')
+          today = datetime.date.today()
+          start_d = (today - datetime.timedelta(days=30)).strftime('%Y-%m-%d')
+          end_d = today.strftime('%Y-%m-%d')
+          
+          new_games = statsapi.schedule(start_date=start_d, end_date=end_d)
+          df_new = pd.DataFrame(new_games)
+          
+          csv_file = 'mlb_2024_schedule.csv'
+          if os.path.exists(csv_file):
+              df_old = pd.read_csv(csv_file)
+              df_merged = pd.concat([df_old, df_new]).drop_duplicates(subset=['game_id']).reset_index(drop=True)
+          else:
+              df_merged = df_new
+              
+          df_merged.to_csv(csv_file, index=False)
+          print(f'更新完成！目前總紀錄筆數：{len(df_merged)}')
+          "
+
+      - name: 自動提交並推送到 GitHub
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add mlb_2024_schedule.csv
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 自動更新 MLB 最新賽事數據 [skip ci]" && git push)
